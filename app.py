@@ -13,6 +13,7 @@
   streamlit run 预采量订货明细看板.py
 """
 import io
+import os
 
 import pandas as pd
 import plotly.express as px
@@ -20,7 +21,10 @@ import plotly.graph_objects as go
 import streamlit as st
 
 # ================= 配置 =================
-CSV_PATH = r"C:\Users\刘福川\Downloads\预采量订货明细_2026-09-09 (1).csv"  # 本地数据路径
+# 云端部署：把数据文件和代码放在同一目录（建议命名 data.csv）
+# 本地运行：也可以直接改用绝对路径
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CSV_CANDIDATES = ["data.csv", "预采量订货明细.csv", "预采量订货明细_2026-09-09 (1).csv"]
 PAGE_TITLE = "快驴生鲜 · 预采量订货明细看板"
 
 # 七个独立筛选字段
@@ -51,9 +55,17 @@ def load_data(uploaded_file=None):
             except UnicodeDecodeError:
                 continue
     else:
+        csv_path = None
+        for name in CSV_CANDIDATES:
+            candidate = os.path.join(SCRIPT_DIR, name)
+            if os.path.exists(candidate):
+                csv_path = candidate
+                break
+        if csv_path is None:
+            return pd.DataFrame()
         for enc in ("utf-8-sig", "gbk"):
             try:
-                df = pd.read_csv(CSV_PATH, encoding=enc, thousands=",", dtype=str)
+                df = pd.read_csv(csv_path, encoding=enc, thousands=",", dtype=str)
                 break
             except UnicodeDecodeError:
                 continue
@@ -83,6 +95,9 @@ with st.sidebar:
     upload = st.file_uploader("上传新的订货明细 CSV（不传则读取代码内路径）", type=["csv"])
 if upload is not None:
     df_raw = load_data(upload)
+if df_raw.empty:
+    st.warning("⚠️ 未找到数据文件：请把数据 CSV 命名为 data.csv 与本代码放在同一目录并重新部署，或在左侧直接上传 CSV 文件")
+    st.stop()
 filters = {}
 
 for col in FILTER_COLS:
